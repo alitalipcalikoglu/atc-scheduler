@@ -11,6 +11,7 @@ Scenario-driven walkthroughs of every feature. Requests to `/v1/*` need `Authori
 | [Retries](retries.md) | Retry policy, backoff, retryable versus permanent failures, attempts |
 | [Manual runs](manual-runs.md) | Run now, one active run per job, cancelling queued runs |
 | [Runs and history](runs-and-history.md) | Listing, filters, pagination, stats, retention |
+| [Calling the other atc services](internal-services.md) | Nightly export and backup, the named keys the stack provides |
 | [Scheduling a flag change](flags-scheduled-change.md) | Enable a feature flag at 09:00 through the flags service |
 | [API keys and roles](keys-and-roles.md) | Read, write, readwrite; rate limit; error codes |
 | [Operations](operations.md) | Health, readiness, metrics, environment, PM2, Docker, backups |
