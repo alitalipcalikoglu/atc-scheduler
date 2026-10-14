@@ -4,7 +4,7 @@ import { Database } from '../src/db.js';
 import { JobService } from '../src/domain/job-service.js';
 import { ScheduleRule } from '../src/domain/schedule.js';
 import { HttpCaller } from '../src/net/http-caller.js';
-import { NetGuard } from '@atc-web/service-core/http';
+import { NetGuard } from '@atc-web/atc-service-core/http';
 import { Signer } from '../src/net/signer.js';
 import { HeartbeatStore } from '../src/store/heartbeat-store.js';
 import { JobStore } from '../src/store/job-store.js';

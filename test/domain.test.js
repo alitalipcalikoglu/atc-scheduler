@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { SchedulerError } from '../src/domain/errors.js';
 import { JobService } from '../src/domain/job-service.js';
 import { Signer } from '../src/net/signer.js';
-import { NetGuard } from '@atc-web/service-core/http';
+import { NetGuard } from '@atc-web/atc-service-core/http';
 import { testService } from './helpers.js';
 
 const T0 = Date.parse('2026-09-17T10:00:00Z');

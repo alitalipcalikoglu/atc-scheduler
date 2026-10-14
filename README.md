@@ -1,4 +1,4 @@
-# scheduler
+# atc-scheduler
 
 Cron and one-shot jobs that call HTTP endpoints: timezone-aware schedules, signed requests, bearer tokens by name, retries with exponential backoff, one active run per job, full run history. HTTP only; the worker runs inside the same process.
 
@@ -172,7 +172,7 @@ the caller sends none), redacted `Authorization` headers in logs, and structured
 lines from the worker (`job`, `run`, `attempt`, `status`, `httpStatus`, `durationMs`,
 `nextAttemptAt`). `scheduler` also parses an inbound `traceparent`, trusted only when
 `TRUST_PROXY=true` — the caller's trace-id is continued with a fresh span-id, both logged as
-`traceId`/`spanId` via `@atc-web/service-core`'s `registerRequestContext`. Its own outbound calls
+`traceId`/`spanId` via `@atc-web/atc-service-core`'s `registerRequestContext`. Its own outbound calls
 (to job targets and to `audit`) remain external/operator-configured and do not propagate
 `X-Request-Id` or `traceparent` onward — see [OBSERVABILITY.md](../stack/docs/OBSERVABILITY.md).
 See

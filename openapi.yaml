@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: scheduler
+  title: atc-scheduler
   version: "1.1.0"
   description: >-
     Cron and one-shot job scheduler: signed HTTP calls to your services, retries with backoff,
@@ -26,7 +26,7 @@ security:
 paths:
   /openapi.yaml:
     get:
-      operationId: scheduler.openapi
+      operationId: atc-scheduler.openapi
       summary: Download the canonical OpenAPI document
       description: Returns this service's repository-root OpenAPI 3.1 document byte-for-byte.
       security: []
@@ -39,7 +39,7 @@ paths:
 
   /health:
     get:
-      operationId: scheduler.health.get
+      operationId: atc-scheduler.health.get
       summary: Liveness probe
       description: Always `200` while the process is up. No dependency check.
       tags: [Meta]
@@ -55,7 +55,7 @@ paths:
 
   /ready:
     get:
-      operationId: scheduler.ready.get
+      operationId: atc-scheduler.ready.get
       summary: Readiness probe
       description: >-
         Runs `db.ping()`, cached for 10 seconds. `worker` reports `"running"`/`"stopped"`: from
@@ -80,7 +80,7 @@ paths:
 
   /v1/info:
     get:
-      operationId: scheduler.info.get
+      operationId: atc-scheduler.info.get
       summary: Service and API contract identification
       description: >-
         `capabilities` is a static, always-on list for this service (confirmed no
@@ -99,7 +99,7 @@ paths:
 
   /metrics:
     get:
-      operationId: scheduler.metrics.get
+      operationId: atc-scheduler.metrics.get
       summary: Prometheus metrics
       description: >-
         Authenticated (any role) but exempt from this service's own `/v1` rate limiter — a fixed,
@@ -121,7 +121,7 @@ paths:
 
   /v1/jobs:
     post:
-      operationId: scheduler.jobs.create
+      operationId: atc-scheduler.jobs.create
       summary: Create a job
       tags: [Jobs]
       requestBody:
@@ -160,7 +160,7 @@ paths:
           $ref: "#/components/responses/RateLimited"
 
     get:
-      operationId: scheduler.jobs.list
+      operationId: atc-scheduler.jobs.list
       summary: List jobs
       description: Sorted by name; keyset-paginated on name.
       tags: [Jobs]
@@ -188,7 +188,7 @@ paths:
 
   /v1/jobs/{name}:
     get:
-      operationId: scheduler.jobs.get
+      operationId: atc-scheduler.jobs.get
       summary: Get a job
       tags: [Jobs]
       parameters:
@@ -214,7 +214,7 @@ paths:
           $ref: "#/components/responses/RateLimited"
 
     patch:
-      operationId: scheduler.jobs.patch
+      operationId: atc-scheduler.jobs.patch
       summary: Partially update a job
       description: >-
         Changing `schedule` or setting `enabled: true` on a paused job recomputes the next
@@ -253,7 +253,7 @@ paths:
           $ref: "#/components/responses/RateLimited"
 
     delete:
-      operationId: scheduler.jobs.delete
+      operationId: atc-scheduler.jobs.delete
       summary: Delete a job
       description: Deletes the job and, by database cascade, all of its runs.
       tags: [Jobs]
@@ -273,7 +273,7 @@ paths:
 
   /v1/jobs/{name}/run:
     post:
-      operationId: scheduler.jobs.run
+      operationId: atc-scheduler.jobs.run
       summary: Trigger a job manually
       description: >-
         Queues a new `pending` run immediately, regardless of the job's schedule or `enabled`
@@ -306,7 +306,7 @@ paths:
 
   /v1/jobs/{name}/runs:
     get:
-      operationId: scheduler.jobs.listRuns
+      operationId: atc-scheduler.jobs.listRuns
       summary: List a job's runs
       description: >-
         Newest first, keyset-paginated by run id. `404 JOB_NOT_FOUND` when the job does not
@@ -339,7 +339,7 @@ paths:
 
   /v1/runs:
     get:
-      operationId: scheduler.runs.list
+      operationId: atc-scheduler.runs.list
       summary: List runs across all jobs
       description: Newest first, keyset-paginated by run id.
       tags: [Runs]
@@ -366,7 +366,7 @@ paths:
 
   /v1/runs/{id}:
     get:
-      operationId: scheduler.runs.get
+      operationId: atc-scheduler.runs.get
       summary: Get a run
       tags: [Runs]
       parameters:
@@ -393,7 +393,7 @@ paths:
 
   /v1/runs/{id}/cancel:
     post:
-      operationId: scheduler.runs.cancel
+      operationId: atc-scheduler.runs.cancel
       summary: Cancel a queued or retrying run
       description: >-
         Only `pending` and `retrying` runs can be cancelled. A `running` run (an attempt
@@ -427,7 +427,7 @@ paths:
 
   /v1/schedule/preview:
     get:
-      operationId: scheduler.schedule.preview
+      operationId: atc-scheduler.schedule.preview
       summary: Preview a cron schedule's upcoming firings
       description: >-
         Cron schedules only — there is no equivalent preview for a one-shot (`at`) schedule,
@@ -475,7 +475,7 @@ paths:
 
   /v1/target-keys:
     get:
-      operationId: scheduler.targetKeys.list
+      operationId: atc-scheduler.targetKeys.list
       summary: List configured target key names
       description: >-
         Names only (sorted), from `TARGET_KEYS` — never the secrets themselves. A job references
@@ -498,7 +498,7 @@ paths:
 
   /v1/timezones:
     get:
-      operationId: scheduler.timezones.list
+      operationId: atc-scheduler.timezones.list
       summary: List supported IANA timezone names
       description: The full set of `Intl.supportedValuesOf('timeZone')` for this Node runtime.
       tags: [Reference]
@@ -518,7 +518,7 @@ paths:
 
   /v1/stats:
     get:
-      operationId: scheduler.stats.get
+      operationId: atc-scheduler.stats.get
       summary: Job and run statistics
       description: >-
         `runs.last24h`/`avgDurationMs24h`/`topFailures24h` cover a fixed trailing 24-hour window.
@@ -824,7 +824,7 @@ components:
           description: Database schema version (`PRAGMA user_version`).
         serviceCore:
           type: string
-          description: Version of the installed `@atc-web/service-core` package actually running.
+          description: Version of the installed `@atc-web/atc-service-core` package actually running.
 
     JobNameValue:
       type: string

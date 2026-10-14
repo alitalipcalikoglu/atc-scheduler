@@ -1,4 +1,4 @@
-import { ConfigError, EnvReader, parseApiKeys, parseAudit, parseTarget } from '@atc-web/service-core/config';
+import { ConfigError, EnvReader, parseApiKeys, parseAudit, parseTarget } from '@atc-web/atc-service-core/config';
 import { CronExpression } from './domain/cron.js';
 
 /** @typedef {import('./types.js').ApiKey} ApiKey */

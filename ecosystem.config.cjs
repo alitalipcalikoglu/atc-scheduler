@@ -15,7 +15,7 @@ const KILL_TIMEOUT_MS = 630_000;
 module.exports = {
   apps: [
     {
-      name: 'scheduler',
+      name: 'atc-scheduler',
       cwd: __dirname,
       script: 'src/index.js',
       node_args: ['--disable-warning=ExperimentalWarning', `--env-file=${path.join(__dirname, '.env')}`],

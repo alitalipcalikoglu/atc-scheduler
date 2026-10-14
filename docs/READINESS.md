@@ -345,7 +345,7 @@ requests, under its own field name).
 directly by an untrusted client), so it already unconditionally accepts and logs whatever
 `X-Request-Id` a caller sends via `requestIdHeader: 'x-request-id'` in `src/http/scheduler-api.js`
 — this predates the current architecture review and is not new. It also parses an inbound
-`traceparent` via `@atc-web/service-core`'s `registerRequestContext`, trust-gated on `TRUST_PROXY`
+`traceparent` via `@atc-web/atc-service-core`'s `registerRequestContext`, trust-gated on `TRUST_PROXY`
 (same boundary as `X-Forwarded-*`): trusted, the caller's trace-id is continued with a fresh
 span-id; untrusted or malformed, a fresh trace is started. Both `traceId`/`spanId` are logged on
 every request line — see [OBSERVABILITY.md](../../stack/docs/OBSERVABILITY.md). `scheduler`'s own

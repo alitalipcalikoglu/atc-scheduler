@@ -182,7 +182,7 @@ test('API: /v1/info', async (t) => {
   const res = await app.inject({ url: '/v1/info' });
   assert.equal(res.statusCode, 200);
   const body = json(res);
-  assert.equal(body.service, 'scheduler');
+  assert.equal(body.service, 'atc-scheduler');
   assert.equal(body.version, VERSION);
   assert.equal(body.apiVersion, 'v1');
   assert.deepEqual(body.capabilities, ['cron-schedule', 'one-off-schedule', 'retry-backoff', 'http-target']);

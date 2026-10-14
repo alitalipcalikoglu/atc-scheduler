@@ -15,11 +15,11 @@ One event per completed write request, `outcome: "success"` for 2xx, `outcome: "
 
 | Action | Request |
 |---|---|
-| `scheduler.job.create` | `POST /v1/jobs` |
-| `scheduler.job.update` | `PATCH /v1/jobs/:name` |
-| `scheduler.job.delete` | `DELETE /v1/jobs/:name` |
-| `scheduler.job.run` | `POST /v1/jobs/:name/run` |
-| `scheduler.run.cancel` | `POST /v1/runs/:id/cancel` |
+| `atc-scheduler.job.create` | `POST /v1/jobs` |
+| `atc-scheduler.job.update` | `PATCH /v1/jobs/:name` |
+| `atc-scheduler.job.delete` | `DELETE /v1/jobs/:name` |
+| `atc-scheduler.job.run` | `POST /v1/jobs/:name/run` |
+| `atc-scheduler.run.cancel` | `POST /v1/runs/:id/cancel` |
 
 ## Event shape
 
@@ -27,7 +27,7 @@ One event per completed write request, `outcome: "success"` for 2xx, `outcome: "
 {
   "id": "0f1a…",
   "at": "2026-09-17T10:00:00.000Z",
-  "action": "scheduler.job.create",
+  "action": "atc-scheduler.job.create",
   "outcome": "success",
   "actor": { "type": "apikey", "id": "console" },
   "target": { "type": "…", "id": "…" },
@@ -38,4 +38,4 @@ One event per completed write request, `outcome: "success"` for 2xx, `outcome: "
 }
 ```
 
-`meta` carries the request patch or a summary (counts) where useful; secrets never appear in it. For `scheduler.job.update` the patch's `target` keeps only `url`, `method` and the header names: header values and the target body can hold credentials and are not forwarded. Query the audit service by `source=scheduler`, `actionPrefix=scheduler.` or by target to reconstruct what happened to an entity.
+`meta` carries the request patch or a summary (counts) where useful; secrets never appear in it. For `atc-scheduler.job.update` the patch's `target` keeps only `url`, `method` and the header names: header values and the target body can hold credentials and are not forwarded. Query the audit service by `source=scheduler`, `actionPrefix=scheduler.` or by target to reconstruct what happened to an entity.

@@ -1,6 +1,6 @@
 # Scheduling a flag change
 
-Scenario: the `checkout.new` flag must switch on in `prod` on 1 October at 09:00 Istanbul time, without anyone being awake for it. The [flags service](https://github.com/alitalipcalikoglu/flags) has no scheduling of its own; this job supplies it.
+Scenario: the `checkout.new` flag must switch on in `prod` on 1 October at 09:00 Istanbul time, without anyone being awake for it. The [flags service](https://github.com/alitalipcalikoglu/atc-flags) has no scheduling of its own; this job supplies it.
 
 ## 1. Give the scheduler a flags key
 
