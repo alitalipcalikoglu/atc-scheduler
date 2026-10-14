@@ -39,12 +39,12 @@ module.exports = {
     // run, and a worker replica claims and executes runs without listening on a port. Both share
     // the same DB_PATH and the same Config — nothing about the environment contract differs from
     // the combined app above. To use this topology instead of the combined one: remove the
-    // 'scheduler' app above (running both alongside a split worker just means two workers sharing
+    // 'atc-scheduler' app above (running both alongside a split worker just means two workers sharing
     // the file, which is safe under the Stage 6 lease model but rarely what you want) and
     // uncomment these two.
     //
     // {
-    //   name: 'scheduler-api',
+    //   name: 'atc-scheduler-api',
     //   cwd: __dirname,
     //   script: 'src/api-main.js',
     //   node_args: ['--disable-warning=ExperimentalWarning', `--env-file=${path.join(__dirname, '.env')}`],
@@ -61,7 +61,7 @@ module.exports = {
     //   env: { NODE_ENV: 'production' },
     // },
     // {
-    //   name: 'scheduler-worker',
+    //   name: 'atc-scheduler-worker',
     //   cwd: __dirname,
     //   script: 'src/worker-main.js',
     //   node_args: ['--disable-warning=ExperimentalWarning', `--env-file=${path.join(__dirname, '.env')}`],

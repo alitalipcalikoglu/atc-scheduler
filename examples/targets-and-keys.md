@@ -29,7 +29,7 @@ TARGET_KEYS=flags:3f9a…,notify:71cc…,reports:b02e…
 ```
 
 ```json
-{ "name": "sync.flags", "targetKey": "flags", "target": { "url": "https://flags.internal/v1/flags/promo/envs/prod", "method": "PATCH", "body": { "enabled": true } } }
+{ "name": "sync.flags", "targetKey": "atc-flags", "target": { "url": "https://flags.internal/v1/flags/promo/envs/prod", "method": "PATCH", "body": { "enabled": true } } }
 ```
 
 The call carries `Authorization: Bearer 3f9a…`. The secret is not stored in the database, does not appear in any response, and rotating it is an `.env` change plus restart. `GET /v1/target-keys` lists the names (never the values) so a console can offer a picker.

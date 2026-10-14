@@ -24,7 +24,7 @@ Production with Docker (mount the database directory):
 
 ```bash
 docker build -t atc-scheduler .
-docker run -p 3008:3008 -v scheduler-data:/data --env-file .env atc-scheduler
+docker run -p 3008:3008 -v atc-scheduler-data:/data --env-file .env atc-scheduler
 ```
 
 Tests and type check:
@@ -124,7 +124,7 @@ Class-based; dependencies are injected through constructors, `src/application.js
 - Sub-minute schedules: the smallest cron unit is a minute; a receiver that needs a tighter loop should own it.
 - Payload templating (dates in the body): receivers know the time from `X-Scheduler-Timestamp` and the run's `scheduledFor`.
 - Push notifications on failure: poll `/v1/stats` or scrape `/metrics`; a notify job can be a receiver's responsibility.
-- True multi-host distribution: every process (API or worker, however many) must reach the same `DB_PATH` file on one host — there is no network-shared counter store. Splitting a workload across hosts still means splitting jobs across separate `scheduler` instances, each with its own database.
+- True multi-host distribution: every process (API or worker, however many) must reach the same `DB_PATH` file on one host — there is no network-shared counter store. Splitting a workload across hosts still means splitting jobs across separate `atc-scheduler` instances, each with its own database.
 
 ## Audit events
 
@@ -158,7 +158,7 @@ rejected (`owner_token`/`status` no longer match), not silently accepted.
 Scaling class **B — single-node stateful**, but since Stage 6 "single-node" means one HOST, not
 one PROCESS: **multiple worker processes against the same `DB_PATH` are a supported topology**, not
 just a configuration that happens not to corrupt data: `ecosystem.config.cjs`'s split
-`scheduler-worker` app can run with `instances` > 1. Claiming is atomic across processes (`BEGIN IMMEDIATE` around the whole
+`atc-scheduler-worker` app can run with `instances` > 1. Claiming is atomic across processes (`BEGIN IMMEDIATE` around the whole
 read-decide-write), proven with real cross-connection concurrency in
 `test/lease-concurrency.test.js`, not just same-process `Promise.all`. See
 [docs/READINESS.md](docs/READINESS.md) for the full contract, including exactly what a Redis-style
@@ -170,11 +170,11 @@ every guarantee this design needs; the topology limit is one host, not one proce
 Every request already gets a `reqId` (Fastify's `requestIdHeader: 'x-request-id'`, generated when
 the caller sends none), redacted `Authorization` headers in logs, and structured run-outcome log
 lines from the worker (`job`, `run`, `attempt`, `status`, `httpStatus`, `durationMs`,
-`nextAttemptAt`). `scheduler` also parses an inbound `traceparent`, trusted only when
+`nextAttemptAt`). `atc-scheduler` also parses an inbound `traceparent`, trusted only when
 `TRUST_PROXY=true` — the caller's trace-id is continued with a fresh span-id, both logged as
 `traceId`/`spanId` via `@atc-web/atc-service-core`'s `registerRequestContext`. Its own outbound calls
-(to job targets and to `audit`) remain external/operator-configured and do not propagate
-`X-Request-Id` or `traceparent` onward — see [OBSERVABILITY.md](../stack/docs/OBSERVABILITY.md).
+(to job targets and to `atc-audit`) remain external/operator-configured and do not propagate
+`X-Request-Id` or `traceparent` onward — see [OBSERVABILITY.md](../atc-stack/docs/OBSERVABILITY.md).
 See
 [docs/READINESS.md](docs/READINESS.md) for the full contract.
 
@@ -182,14 +182,14 @@ See
 
 The only state that needs to survive a disk loss is the SQLite file at `DB_PATH` (jobs and run
 history), including its `-wal`/`-shm` sidecars while the process is live. Use `stack backup`/
-`stack restore` from the workspace root (see `stack/docs/UPGRADE.md`) to snapshot and restore this
+`stack restore` from the workspace root (see `atc-stack/docs/UPGRADE.md`) to snapshot and restore this
 consistently alongside the rest of the stack — it uses `VACUUM INTO` against the live file, so
 stopping the process first is not required. Restoring means stopping the process, replacing the
 file, and starting again — `Database` runs its migration check on open, so a slightly older backup
 catches up automatically. On every start, before applying a pending migration to an existing
 database, the service itself also snapshots the file to `DB_PATH.pre-v<N>-<timestamp>` (directory
 overridable with `DB_BACKUP_DIR`) — a manual last resort if `stack restore` is unavailable.
-`scheduler`'s tables are self-contained; there is no cross-service data-ordering constraint to
+`atc-scheduler`'s tables are self-contained; there is no cross-service data-ordering constraint to
 restoring it.
 
 **Rollback limitations:** none of the migrations are reversible; to roll back, restore the

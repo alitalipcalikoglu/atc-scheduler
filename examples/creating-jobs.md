@@ -27,7 +27,7 @@ scurl -X POST $SCHED/v1/jobs -d '{
     "target": { "url": "https://api.example/reports/daily", "method": "POST", "headers": {}, "body": { "full": true } },
     "targetKey": "reports", "timeoutMs": 45000, "retry": { "max": 3, "backoffSec": 60 },
     "nextRunAt": "2026-09-18T00:00:00.000Z", "lastRunAt": null, "lastStatus": null,
-    "createdBy": "console", "createdAt": "2026-09-17T10:00:00.000Z", "updatedAt": "2026-09-17T10:00:00.000Z"
+    "createdBy": "atc-console", "createdAt": "2026-09-17T10:00:00.000Z", "updatedAt": "2026-09-17T10:00:00.000Z"
   }
 }
 ```

@@ -807,7 +807,7 @@ components:
       properties:
         service:
           type: string
-          const: scheduler
+          const: atc-scheduler
         version:
           type: string
           description: This service's own package semver.

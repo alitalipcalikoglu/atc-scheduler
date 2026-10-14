@@ -51,7 +51,7 @@ pm2 reload scheduler
 
 ```bash
 docker build -t atc-scheduler .
-docker run -d -p 3008:3008 -v scheduler-data:/data --env-file .env atc-scheduler
+docker run -d -p 3008:3008 -v atc-scheduler-data:/data --env-file .env atc-scheduler
 ```
 
 ## Logs

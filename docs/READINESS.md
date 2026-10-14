@@ -1,26 +1,26 @@
-# `scheduler` readiness contract
+# `atc-scheduler` readiness contract
 
 ## Purpose
 
-`scheduler` lets the rest of the platform define cron and one-shot jobs that fire signed HTTP
+`atc-scheduler` lets the rest of the platform define cron and one-shot jobs that fire signed HTTP
 calls into other services' endpoints on a schedule, with retries, timezone-aware timing, one
 active run per job, and full run history — so a service that needs "call me at 3am" or "call me
 in 20 minutes" does not need to build its own timer, retry logic or SSRF guard.
 
 ## Dependencies
 
-- `audit` (`AUDIT_URL` + `AUDIT_API_KEY`): optional. Both env vars unset means audit forwarding is
+- `atc-audit` (`AUDIT_URL` + `AUDIT_API_KEY`): optional. Both env vars unset means audit forwarding is
   off entirely (`Config.#parseAudit` returns `null`); both must be set together or `Config.fromEnv`
   refuses to start. When configured, write/security events are buffered in memory and sent in the
-  background (`src/net/audit-client.js`) — `audit` being down or slow never blocks or fails the
+  background (`src/net/audit-client.js`) — `atc-audit` being down or slow never blocks or fails the
   triggering API request; events are retried and eventually dropped with a log line (see "Retry
   policy"). Not required at startup beyond the both-or-neither env check.
-- Job targets (the URL each job calls, e.g. `flags`, `notify`, any HTTP endpoint named in a job's
+- Job targets (the URL each job calls, e.g. `atc-flags`, `atc-notify`, any HTTP endpoint named in a job's
   `target.url`): not a startup dependency at all — jobs are arbitrary and validated individually.
   `TARGET_KEYS` (bearer tokens a job can reference by name) is optional and defaults to empty; a
   job referencing an unconfigured key is rejected at creation time (`UNKNOWN_TARGET_KEY`), not at
   call time.
-- No other outbound service dependency. `scheduler` does not call `auth`, `gateway`, or any other
+- No other outbound service dependency. `atc-scheduler` does not call `atc-auth`, `atc-gateway`, or any other
   platform service to do its own work.
 
 ## Persistence
@@ -98,7 +98,7 @@ order — see below for what it was and why):
    (`config.maxTimeoutMs + 5_000`) — see below.
 4. `this.audit.close()` — stops the flush timer and does one final `flush()` of buffered audit
    events (with its own retry/backoff; see "Retry policy" — this step can itself take up to
-   roughly a minute in the worst case if `audit` is unreachable, bounded only by the overall
+   roughly a minute in the worst case if `atc-audit` is unreachable, bounded only by the overall
    force-exit timer below).
 5. `this.db.close()`.
 
@@ -175,7 +175,7 @@ timeout (one run's ceiling); `HEARTBEAT_MS` is how often an in-flight run renews
   timed HTTP request is constructed and has no timeout of its own — a hostname that resolves
   slowly is not bounded by the job's `timeoutMs` at all; only Node/OS resolver behavior limits it.
 - `AuditClient` per-request timeout: `timeoutMs` option, default 5000 ms, via
-  `AbortSignal.timeout(...)` on the fetch to `audit`.
+  `AbortSignal.timeout(...)` on the fetch to `atc-audit`.
 - No explicit Fastify/Node HTTP server timeouts (keep-alive, headers timeout) are configured
   anywhere in `src/http/scheduler-api.js`; Node's built-in server defaults apply unmodified.
 
@@ -285,7 +285,7 @@ siblings while the process is live can capture a state that is missing recently-
 
 ## Restore
 
-1. Stop the `scheduler` process (`pm2 stop scheduler`, or take the container down).
+1. Stop the `atc-scheduler` process (`pm2 stop scheduler`, or take the container down).
 2. Replace the file at `DB_PATH` (and remove any stale `-wal`/`-shm` files from the *new* location
    if the restored file was checkpointed cleanly, i.e. taken with the process stopped or via
    `.backup`/`VACUUM INTO`).
@@ -294,9 +294,9 @@ siblings while the process is live can capture a state that is missing recently-
    service version is expected to work through this path (assuming no migration since removed a
    column another migration depended on, which is not something this codebase's tooling checks
    for).
-4. No ordering constraint with other services' data: `scheduler` does not share database rows or
-   foreign keys with `audit` or any job target — its own `jobs`/`runs` tables are self-contained.
-   The one soft coupling is semantic, not enforced: restoring `scheduler` to an older point can
+4. No ordering constraint with other services' data: `atc-scheduler` does not share database rows or
+   foreign keys with `atc-audit` or any job target — its own `jobs`/`runs` tables are self-contained.
+   The one soft coupling is semantic, not enforced: restoring `atc-scheduler` to an older point can
    replay firings whose targets have since changed behavior, which is a job-design concern, not a
    data-integrity one.
 
@@ -332,7 +332,7 @@ Worker and audit-client log lines are hand-built structured objects, not tied to
 (plus `error` on failure/retry); the audit client logs `{ buffered }` on a full-buffer drop and
 `{ status, body, events }` / `{ err, events }` on send failures.
 
-Against the vocabulary in [OBSERVABILITY.md](../../stack/docs/OBSERVABILITY.md): `scheduler` emits
+Against the vocabulary in [OBSERVABILITY.md](../../atc-stack/docs/OBSERVABILITY.md): `atc-scheduler` emits
 `reqId` (via Fastify's default logging) but does **not** emit `traceId`, `spanId`, `route`/`op`,
 `upstream`, `upstreamMs`, `service`, or `version` — none of these fields appear anywhere in this
 codebase. `durationMs` is emitted, but only on worker run-outcome log lines, not as the vocabulary
@@ -341,16 +341,16 @@ requests, under its own field name).
 
 ## Tracing
 
-`scheduler` sits behind the gateway/console/peer-service trust boundary (it is never reached
+`atc-scheduler` sits behind the gateway/console/peer-service trust boundary (it is never reached
 directly by an untrusted client), so it already unconditionally accepts and logs whatever
 `X-Request-Id` a caller sends via `requestIdHeader: 'x-request-id'` in `src/http/scheduler-api.js`
 — this predates the current architecture review and is not new. It also parses an inbound
 `traceparent` via `@atc-web/atc-service-core`'s `registerRequestContext`, trust-gated on `TRUST_PROXY`
 (same boundary as `X-Forwarded-*`): trusted, the caller's trace-id is continued with a fresh
 span-id; untrusted or malformed, a fresh trace is started. Both `traceId`/`spanId` are logged on
-every request line — see [OBSERVABILITY.md](../../stack/docs/OBSERVABILITY.md). `scheduler`'s own
+every request line — see [OBSERVABILITY.md](../../atc-stack/docs/OBSERVABILITY.md). `atc-scheduler`'s own
 outbound calls — to job targets (external, operator-configured — `src/net/http-caller.js`) and to
-`audit` (`src/net/audit-client.js`, deliberately unwired — see OBSERVABILITY.md's trust model) —
+`atc-audit` (`src/net/audit-client.js`, deliberately unwired — see OBSERVABILITY.md's trust model) —
 still send neither
 `X-Request-Id` nor `traceparent` onward; the outbound headers to a job target are exactly
 `X-Scheduler-Job`, `X-Scheduler-Run`, `X-Scheduler-Attempt`, `X-Scheduler-Timestamp`,
@@ -396,7 +396,7 @@ combined one.
 
 **B — single-node stateful, but "single-node" now means one HOST, not one PROCESS.**
 `ecosystem.config.cjs`'s default (combined) app still pins `instances: 1`, but the commented-out
-split `scheduler-worker` app documents raising its own `instances` above 1 as a supported topology
+split `atc-scheduler-worker` app documents raising its own `instances` above 1 as a supported topology
 — multiple worker processes (and, separately, multiple API processes) against the same `DB_PATH`
 file, all on one host. This is a genuine change from before Stage 6, not just a relaxed warning:
 **correctness, throughput, and crash recovery are now all preserved across processes.**
@@ -423,7 +423,7 @@ no double-claiming, and a killed-and-restarted process self-heals via `recover()
 tolerated one: it adds real throughput and real shared crash recovery, at the cost of write-lock
 contention under very high claim rates (bounded by `busy_timeout = 5000` ms) — still one host,
 still one SQLite file; there is no network-shared counter store, so splitting across *hosts* still
-means splitting jobs across separate `scheduler` instances with disjoint job sets and separate
+means splitting jobs across separate `atc-scheduler` instances with disjoint job sets and separate
 databases, exactly as before.
 
 ## Known failure modes
