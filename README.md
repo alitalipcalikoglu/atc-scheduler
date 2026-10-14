@@ -123,8 +123,12 @@ Class-based; dependencies are injected through constructors, `src/application.js
 - Job chains and dependencies ("run B after A"): have A's receiver trigger B (`POST /v1/jobs/b/run`).
 - Sub-minute schedules: the smallest cron unit is a minute; a receiver that needs a tighter loop should own it.
 - Payload templating (dates in the body): receivers know the time from `X-Scheduler-Timestamp` and the run's `scheduledFor`.
-- Push notifications on failure: poll `/v1/stats` or scrape `/metrics`; a notify job can be a receiver's responsibility.
+- E-mail or chat notifications on failure: the service publishes `ops.scheduler.job_failed` to atc-webhook-out; routing it to people is the job of a subscription (atc-status turns `ops.*` into e-mails).
 - True multi-host distribution: every process (API or worker, however many) must reach the same `DB_PATH` file on one host — there is no network-shared counter store. Splitting a workload across hosts still means splitting jobs across separate `atc-scheduler` instances, each with its own database.
+
+## Events
+
+With `WEBHOOK_OUT_URL` set, a run that ends `failed` (retries used up, or a permanent error) publishes `ops.scheduler.job_failed`. Best effort; see [examples/events.md](examples/events.md).
 
 ## Audit events
 
@@ -177,6 +181,8 @@ lines from the worker (`job`, `run`, `attempt`, `status`, `httpStatus`, `duratio
 `X-Request-Id` or `traceparent` onward — see [OBSERVABILITY.md](../atc-stack/docs/OBSERVABILITY.md).
 See
 [docs/READINESS.md](docs/READINESS.md) for the full contract.
+
+Event publishing is observable as `events_publish_enabled`, `events_publish_total{result="published|sent|dropped|failed"}` and `events_publish_pending`.
 
 Audit forwarding is observable too: `audit_forward_enabled`, `audit_forward_events_total{result="recorded|sent|dropped|failed"}` and `audit_forward_pending`. A rising `dropped`, or a `pending` that does not drain, means audit events are being lost or delayed; alert on it.
 

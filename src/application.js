@@ -14,6 +14,7 @@ import { HeartbeatStore } from './store/heartbeat-store.js';
 import { JobStore } from './store/job-store.js';
 import { RunStore } from './store/run-store.js';
 import { Worker } from './worker.js';
+import { EventPublisher } from './events/event-publisher.js';
 
 /** @typedef {'combined'|'api'|'worker'} Role */
 
@@ -40,6 +41,7 @@ export class Application {
     this.config = config;
     this.role = role;
     this.audit = new AuditClient({ target: config.audit });
+    this.publisher = new EventPublisher({ source: 'atc-scheduler', target: config.webhookOut });
     this.version = readServiceVersion(import.meta.url);
     this.db = new Database(config.dbPath, { backupDir: config.dbBackupDir });
     this.jobs = new JobStore(this.db);
@@ -84,14 +86,14 @@ export class Application {
       // Stage 6.1: drainMs bounds the worker's own wait for in-flight calls, strictly less than
       // forceExitMs below (same call-timeout ceiling, smaller margin) so a stuck drain logs and
       // lets the remaining shutdown steps at least attempt to run before the process force-exits.
-      this.worker = new Worker({ service: this.service, jobs: this.jobs, runs: this.runs, presence: this.presence, caller: this.caller, log: log.child({ component: 'worker' }), options: { concurrency: config.workerConcurrency, pollMs: config.pollMs, retentionDays: config.runRetentionDays, maxBackoffSec: config.maxBackoffSec, leaseMs: config.leaseMs, heartbeatMs: config.heartbeatMs, drainMs: config.drainMs } });
+      this.worker = new Worker({ service: this.service, jobs: this.jobs, runs: this.runs, presence: this.presence, caller: this.caller, publisher: this.publisher, log: log.child({ component: 'worker' }), options: { concurrency: config.workerConcurrency, pollMs: config.pollMs, retentionDays: config.runRetentionDays, maxBackoffSec: config.maxBackoffSec, leaseMs: config.leaseMs, heartbeatMs: config.heartbeatMs, drainMs: config.drainMs } });
     }
 
     /** @type {(() => (void|Promise<void>))[]} */
     const steps = [];
 
     if (runsApi) {
-      const api = new SchedulerApi({ config, audit: this.audit, service: this.service, jobs: this.jobs, runs: this.runs, presence: this.presence, worker: this.worker, db: this.db, version: this.version });
+      const api = new SchedulerApi({ config, audit: this.audit, publisher: this.publisher, service: this.service, jobs: this.jobs, runs: this.runs, presence: this.presence, worker: this.worker, db: this.db, version: this.version });
       const app = await api.build();
       this.app = app;
       log = app.log;
@@ -108,12 +110,14 @@ export class Application {
     if (this.worker) steps.push(() => /** @type {Worker} */ (this.worker).stopClaiming());
     if (this.app) steps.push(() => this.app?.close());
     if (this.worker) steps.push(() => /** @type {Worker} */ (this.worker).stop());
+    steps.push(() => this.publisher.close());
     steps.push(() => this.audit.close());
     steps.push(() => this.db.close());
 
     const { shutdown } = Lifecycle.install({ forceExitMs: config.forceExitMs, log, steps });
     this.shutdown = shutdown;
     this.audit.logger = log;
+    this.publisher.logger = log;
     this.audit.start();
 
     if (this.app) {

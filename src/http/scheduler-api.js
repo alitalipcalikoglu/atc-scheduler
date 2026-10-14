@@ -54,11 +54,13 @@ export class SchedulerApi {
    * @param {string} deps.version
    * @param {import('../types.js').Logger} [deps.logger]
    * @param {import('@atc-web/atc-service-core/audit').AuditClient} [deps.audit]
+   * @param {import('../events/event-publisher.js').EventPublisher} [deps.publisher]
    * @param {() => number} [deps.now]
    */
-  constructor({ config, audit, service, jobs, runs, presence, worker, db, version, logger, now = Date.now }) {
+  constructor({ config, audit, publisher, service, jobs, runs, presence, worker, db, version, logger, now = Date.now }) {
     this.config = config;
     this.audit = audit;
+    this.publisher = publisher ?? null;
     this.service = service;
     this.jobs = jobs;
     this.runs = runs;
@@ -236,6 +238,7 @@ export class SchedulerApi {
         '# TYPE scheduler_next_due_seconds gauge',
         `scheduler_next_due_seconds ${j.nextDueAt === null ? -1 : ((j.nextDueAt - Date.now()) / 1000).toFixed(0)}`,
         ...AuditMetrics.lines(this.audit),
+        ...(this.publisher?.metricLines() ?? []),
         '# HELP scheduler_process_uptime_seconds Process uptime.',
         '# TYPE scheduler_process_uptime_seconds gauge',
         `scheduler_process_uptime_seconds ${process.uptime().toFixed(0)}`,

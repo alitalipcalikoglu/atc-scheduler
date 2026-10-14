@@ -90,7 +90,8 @@ test('Worker: retryable failures back off exponentially, then succeed', async (t
 test('Worker: non-retryable status fails at once; exhausted retries fail', async (t) => {
   const target = await targetServer((req) => ({ status: req.url === '/gone' ? 404 : 500 }));
   t.after(target.close);
-  const { service, worker, runs, jobs, clock } = testService();
+  /** @type {any[]} */ const events = [];
+  const { service, worker, runs, jobs, clock } = testService(undefined, { publish: (/** @type {string} */ t, /** @type {any} */ d) => events.push([t, d]) });
   service.create({ name: 'gone', schedule: { cron: '* * * * *' }, target: { url: `${target.url}/gone` }, retry: { max: 5 } }, 'console', clock.now());
   service.create({ name: 'broken', schedule: { cron: '* * * * *' }, target: { url: `${target.url}/broken` }, retry: { max: 1, backoffSec: 1 } }, 'console', clock.now());
   const gone = service.trigger('gone', clock.now());
@@ -106,6 +107,7 @@ test('Worker: non-retryable status fails at once; exhausted retries fail', async
   assert.equal(jobs.get('broken')?.last_status, 'failed');
   assert.equal(target.received.length, 3);
   assert.deepEqual(worker.counters, { succeeded: 0, failed: 2, retried: 1, skipped: 0 });
+  assert.deepEqual(events.map(([t, d]) => `${t}:${d.job}:${d.attempts}:${d.httpStatus}`).sort(), ['ops.scheduler.job_failed:broken:2:500', 'ops.scheduler.job_failed:gone:1:404'], 'only terminal failures are events, not retries');
 });
 
 test('Worker: timeouts and unreachable hosts are retryable; blocked targets are not', async (t) => {

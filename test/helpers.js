@@ -61,8 +61,8 @@ export class FakeClock {
 
 const silent = /** @type {any} */ ({ info() {}, warn() {}, error() {}, fatal() {}, debug() {}, trace() {}, child() { return this; } });
 
-/** Wired domain objects over an in-memory database. @param {Record<string, string>} [overrides] */
-export function testService(overrides) {
+/** Wired domain objects over an in-memory database. @param {Record<string, string>} [overrides] @param {any} [publisher] */
+export function testService(overrides, publisher) {
   const config = testConfig(overrides);
   const clock = new FakeClock(Date.parse('2026-09-17T10:00:00Z'));
   const db = new Database(':memory:');
@@ -72,7 +72,7 @@ export function testService(overrides) {
   const guard = new NetGuard({ allowHttp: config.targetAllowHttp, allowPrivate: config.targetAllowPrivate, allowedHosts: config.targetAllowedHosts });
   const service = new JobService({ db, jobs, runs, guard, schedule: new ScheduleRule({ defaultTimezone: config.defaultTimezone }), options: config, now: clock.now });
   const caller = new HttpCaller({ signer: new Signer(config.signingSecret), guard, targetKeys: config.targetKeys, now: clock.now });
-  const worker = new Worker({ service, jobs, runs, presence, caller, log: silent, options: { concurrency: config.workerConcurrency, pollMs: config.pollMs, retentionDays: config.runRetentionDays, maxBackoffSec: config.maxBackoffSec, leaseMs: config.leaseMs, heartbeatMs: config.heartbeatMs, drainMs: 5_000 }, now: clock.now });
+  const worker = new Worker({ service, jobs, runs, presence, caller, log: silent, options: { concurrency: config.workerConcurrency, pollMs: config.pollMs, retentionDays: config.runRetentionDays, maxBackoffSec: config.maxBackoffSec, leaseMs: config.leaseMs, heartbeatMs: config.heartbeatMs, drainMs: 5_000 }, publisher, now: clock.now });
   return { config, clock, db, jobs, runs, presence, guard, service, caller, worker, now: clock.now, version: VERSION };
 }
 
