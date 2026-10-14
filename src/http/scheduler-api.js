@@ -8,6 +8,7 @@ import { RunStore } from '../store/run-store.js';
 import { ApiKeyAuth } from './api-key-auth.js';
 import { Schemas } from './schemas.js';
 import { Views } from './views.js';
+import { AuditMetrics } from '../audit-metrics.js';
 
 /** @typedef {import('../config.js').Config} Config */
 /** @typedef {import('fastify').FastifyInstance} FastifyInstance */
@@ -234,6 +235,7 @@ export class SchedulerApi {
         '# HELP scheduler_next_due_seconds Seconds until the next scheduled firing (negative = overdue), -1 when nothing is scheduled.',
         '# TYPE scheduler_next_due_seconds gauge',
         `scheduler_next_due_seconds ${j.nextDueAt === null ? -1 : ((j.nextDueAt - Date.now()) / 1000).toFixed(0)}`,
+        ...AuditMetrics.lines(this.audit),
         '# HELP scheduler_process_uptime_seconds Process uptime.',
         '# TYPE scheduler_process_uptime_seconds gauge',
         `scheduler_process_uptime_seconds ${process.uptime().toFixed(0)}`,
