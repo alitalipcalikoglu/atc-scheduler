@@ -21,7 +21,7 @@ export class Views {
   /** @param {RunRow} r */
   static run(r) {
     return {
-      id: Number(r.id), job: r.job_name, trigger: r.trigger, status: r.status, scheduledFor: Views.iso(r.scheduled_for),
+      id: r.public_id, job: r.job_name, trigger: r.trigger, status: r.status, scheduledFor: Views.iso(r.scheduled_for),
       attempt: Number(r.attempt), maxAttempts: Number(r.max_attempts), nextAttemptAt: Views.iso(r.next_attempt_at),
       startedAt: Views.iso(r.started_at), finishedAt: Views.iso(r.finished_at), durationMs: r.duration_ms === null ? null : Number(r.duration_ms),
       httpStatus: r.http_status === null ? null : Number(r.http_status), response: r.response, error: r.error,

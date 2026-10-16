@@ -65,5 +65,12 @@ export class Database extends CoreDatabase {
       seen_at  INTEGER NOT NULL
     );
     `,
+    `
+    -- Public run ids in the platform's one format (run_<time><random>); the integer id stays the
+    -- internal key, the list cursor and the fencing target. Existing rows get a time part of zeros.
+    ALTER TABLE runs ADD COLUMN public_id TEXT;
+    UPDATE runs SET public_id = 'run_00000000' || lower(hex(randomblob(8))) WHERE public_id IS NULL;
+    CREATE UNIQUE INDEX runs_public_id ON runs (public_id);
+    `,
   ];
 }

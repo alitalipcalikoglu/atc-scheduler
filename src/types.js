@@ -92,7 +92,8 @@
 /**
  * One firing of a job, through every attempt.
  * @typedef {object} RunRow
- * @property {number} id
+ * @property {number} id               Internal key (list cursor, fencing); never exposed.
+ * @property {string} public_id        `run_<time><random>`, the id clients see.
  * @property {string} job_name
  * @property {'schedule'|'manual'} trigger
  * @property {RunStatus} status

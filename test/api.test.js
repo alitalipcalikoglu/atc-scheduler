@@ -108,11 +108,12 @@ test('API: manual runs, run listing, cancel, and the worker end to end', async (
   assert.deepEqual(json(await app.inject({ url: '/v1/runs?status=succeeded', headers: bearer(READ_KEY) })).items.map((/** @type {any} */ r) => r.job), ['ok']);
   assert.deepEqual(json(await app.inject({ url: '/v1/jobs/bad/runs', headers: bearer(READ_KEY) })).items.map((/** @type {any} */ r) => r.id), [badRun.id]);
   runs = json(await app.inject({ url: '/v1/runs?limit=1', headers: bearer(READ_KEY) }));
-  assert.equal(runs.nextBefore, String(badRun.id));
-  assert.deepEqual(json(await app.inject({ url: `/v1/runs?limit=1&before=${runs.nextBefore}`, headers: bearer(READ_KEY) })).items.map((/** @type {any} */ r) => r.id), [okRun.id]);
+  assert.ok(runs.nextCursor);
+  assert.match(okRun.id, /^run_[0-9a-z]{6,12}[0-9a-f]{16}$/);
+  assert.deepEqual(json(await app.inject({ url: `/v1/runs?limit=1&cursor=${runs.nextCursor}`, headers: bearer(READ_KEY) })).items.map((/** @type {any} */ r) => r.id), [okRun.id]);
   assert.equal((await app.inject({ url: '/v1/jobs/nope/runs', headers: bearer(READ_KEY) })).statusCode, 404);
-  assert.equal((await app.inject({ url: '/v1/runs/999', headers: bearer(READ_KEY) })).statusCode, 404);
-  assert.equal((await app.inject({ url: '/v1/runs/0', headers: bearer(READ_KEY) })).statusCode, 400);
+  assert.equal((await app.inject({ url: '/v1/runs/run_mgx1k2ab0123456789abcdef', headers: bearer(READ_KEY) })).statusCode, 404);
+  assert.equal((await app.inject({ url: '/v1/runs/999', headers: bearer(READ_KEY) })).statusCode, 400);
 
   res = await app.inject({ method: 'POST', url: `/v1/runs/${badRun.id}/cancel`, headers: bearer(WRITE_KEY) });
   assert.equal(res.statusCode, 200, res.body);
@@ -172,7 +173,7 @@ test('API: schedule preview, target keys, timezones', async (t) => {
   assert.equal(res.statusCode, 400);
   assert.equal(json(res).error.code, 'INVALID_SCHEDULE');
   assert.equal(json(await app.inject({ url: '/v1/schedule/preview?cron=@daily', headers: bearer(READ_KEY) })).next.length, 5);
-  assert.deepEqual(json(await app.inject({ url: '/v1/target-keys', headers: bearer(READ_KEY) })), { items: ['flags'] });
+  assert.deepEqual(json(await app.inject({ url: '/v1/target-keys', headers: bearer(READ_KEY) })), { items: ['flags'], nextCursor: null });
   assert.ok(json(await app.inject({ url: '/v1/timezones', headers: bearer(READ_KEY) })).items.includes('Europe/Istanbul'));
 });
 
@@ -195,4 +196,15 @@ test('job.update audit meta keeps header names only and drops the target body', 
   const meta = SchedulerApi.auditPatch({ enabled: false, target: { url: 'https://x.test/hook', method: 'POST', headers: { authorization: 'Bearer sekret' }, body: { token: 'sekret' } } });
   assert.deepEqual(meta, { enabled: false, target: { url: 'https://x.test/hook', method: 'POST', headers: ['authorization'] } });
   assert.deepEqual(SchedulerApi.auditPatch({ enabled: true }), { enabled: true });
+});
+
+test('API: Idempotency-Key replays a retried manual run instead of firing twice', async (t) => {
+  const { app } = await buildApp();
+  t.after(() => app.close());
+  await app.inject({ method: 'POST', url: '/v1/jobs', headers: bearer(RW_KEY), payload: { name: 'once', schedule: { cron: '@daily' }, target: { url: 'http://127.0.0.1:9/x' } } });
+  const k = { ...bearer(WRITE_KEY), 'idempotency-key': 'manual-run-k1' };
+  const r1 = await app.inject({ method: 'POST', url: '/v1/jobs/once/run', headers: k });
+  const r2 = await app.inject({ method: 'POST', url: '/v1/jobs/once/run', headers: k });
+  assert.equal(r1.statusCode, 202, r1.body);
+  assert.deepEqual([r2.statusCode, r2.headers['idempotent-replayed'], json(r2).run.id], [202, 'true', json(r1).run.id]);
 });

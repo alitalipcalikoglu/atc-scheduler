@@ -29,13 +29,13 @@ Not retried (run fails at once): `3xx` and other `4xx` (the request itself is wr
 ## Reading a run
 
 ```bash
-scurl $SCHED/v1/runs/8412
+scurl $SCHED/v1/runs/run_mgx1k2aa0123456789abcd12
 ```
 
 ```json
 {
   "run": {
-    "id": 8412, "job": "nightly.report", "trigger": "schedule", "status": "retrying",
+    "id": "run_mgx1k2aa0123456789abcd12", "job": "nightly.report", "trigger": "schedule", "status": "retrying",
     "scheduledFor": "2026-09-18T00:00:00.000Z", "attempt": 2, "maxAttempts": 4, "nextAttemptAt": "2026-09-18T00:03:02.310Z",
     "startedAt": "2026-09-18T00:00:00.412Z", "finishedAt": null, "durationMs": 30001,
     "httpStatus": null, "response": null, "error": "target timed out after 30000ms",
@@ -53,7 +53,7 @@ scurl $SCHED/v1/runs/8412
 ## Stop retrying
 
 ```bash
-scurl -X POST $SCHED/v1/runs/8412/cancel
+scurl -X POST $SCHED/v1/runs/run_mgx1k2aa0123456789abcd12/cancel
 ```
 
 Works while the run is `pending` or `retrying` (`200`, status `cancelled`). A `running` attempt cannot be interrupted; it ends at `timeoutMs` at the latest, and a cancel after that is refused with `409 RUN_NOT_CANCELLABLE`.

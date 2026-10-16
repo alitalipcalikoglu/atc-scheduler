@@ -3,6 +3,7 @@ import rateLimit from '@fastify/rate-limit';
 import Fastify from 'fastify';
 import { AuditClient } from '@atc-web/atc-service-core/audit';
 import { createErrorHandler, jsonParser, registerInfo, registerOpenApi, registerProbes, registerRequestContext, requestOptions } from '@atc-web/atc-service-core/fastify';
+import { Idempotency } from '@atc-web/atc-service-core/idempotency';
 import { SchedulerError } from '../domain/errors.js';
 import { RunStore } from '../store/run-store.js';
 import { ApiKeyAuth } from './api-key-auth.js';
@@ -103,6 +104,8 @@ export class SchedulerApi {
       reply.header('x-content-type-options', 'nosniff');
       reply.header('cache-control', 'no-store');
     });
+    // Opt-in per route (config.idempotent): repeats with the same Idempotency-Key replay the first 2xx answer.
+    Idempotency.register(app, { raw: this.db.raw });
     registerProbes(app, () => this.db.ping(), { cacheMs: SchedulerApi.READY_CACHE_MS, extra: () => ({ worker: this.workerStatus() }) });
     registerOpenApi(app, new URL('../../openapi.yaml', import.meta.url));
     registerInfo(app, {
@@ -131,11 +134,16 @@ export class SchedulerApi {
     const read = { preValidation: ApiKeyAuth.require('read') };
     const write = { preValidation: ApiKeyAuth.require('write') };
     const name = (/** @type {FastifyRequest} */ r) => /** @type {{ name: string }} */ (r.params).name;
-    const id = (/** @type {FastifyRequest} */ r) => Number(/** @type {{ id: string }} */ (r.params).id);
+    const id = (/** @type {FastifyRequest} */ r) => {
+      const publicId = /** @type {{ id: string }} */ (r.params).id;
+      const internal = this.runs.idOf(publicId);
+      if (internal === undefined) throw new SchedulerError('RUN_NOT_FOUND', `run ${publicId} not found`);
+      return internal;
+    };
     const query = (/** @type {FastifyRequest} */ r) => /** @type {Record<string, string|undefined>} */ (r.query);
 
     // ---- jobs
-    api.post('/jobs', { config: { audit: AuditClient.route('atc-scheduler.job.create', (_r, b) => ({ type: 'job', id: b.job.name })) }, ...write, schema: { body: Schemas.create } }, async (request, reply) => {
+    api.post('/jobs', { config: { idempotent: true, audit: AuditClient.route('atc-scheduler.job.create', (_r, b) => ({ type: 'job', id: b.job.name })) }, ...write, schema: { body: Schemas.create } }, async (request, reply) => {
       const row = s.create(/** @type {any} */ (request.body), request.apiKey.id);
       reply.header('location', `/v1/jobs/${row.name}`);
       return reply.code(201).send({ job: Views.job(row) });
@@ -156,7 +164,7 @@ export class SchedulerApi {
       return reply.code(204).send();
     });
 
-    api.post('/jobs/:name/run', { config: { audit: AuditClient.route('atc-scheduler.job.run', (r) => ({ type: 'job', id: /** @type {any} */ (r.params).name }), (_r, b) => ({ run: b?.run?.id })) }, ...write, schema: { params: Schemas.nameParams } }, async (request, reply) => reply.code(202).send({ run: Views.run(s.trigger(name(request))) }));
+    api.post('/jobs/:name/run', { config: { idempotent: true, audit: AuditClient.route('atc-scheduler.job.run', (r) => ({ type: 'job', id: /** @type {any} */ (r.params).name }), (_r, b) => ({ run: b?.run?.id })) }, ...write, schema: { params: Schemas.nameParams } }, async (request, reply) => reply.code(202).send({ run: Views.run(s.trigger(name(request))) }));
 
     api.get('/jobs/:name/runs', { ...read, schema: { params: Schemas.nameParams, querystring: Schemas.runsQuery } }, async (request) => {
       s.get(name(request));
@@ -166,7 +174,7 @@ export class SchedulerApi {
     // ---- runs
     api.get('/runs', { ...read, schema: { querystring: Schemas.runsQuery } }, async (request) => this.#runs(query(request)));
     api.get('/runs/:id', { ...read, schema: { params: Schemas.idParams } }, async (request) => ({ run: Views.run(s.run(id(request))) }));
-    api.post('/runs/:id/cancel', { config: { audit: AuditClient.route('atc-scheduler.run.cancel', (r) => ({ type: 'run', id: /** @type {any} */ (r.params).id })) }, ...write, schema: { params: Schemas.idParams } }, async (request) => ({ run: Views.run(s.cancelRun(id(request))) }));
+    api.post('/runs/:id/cancel', { config: { idempotent: true, audit: AuditClient.route('atc-scheduler.run.cancel', (r) => ({ type: 'run', id: /** @type {any} */ (r.params).id })) }, ...write, schema: { params: Schemas.idParams } }, async (request) => ({ run: Views.run(s.cancelRun(id(request))) }));
 
     // ---- helpers for operators and consoles
     api.get('/schedule/preview', { ...read, schema: { querystring: Schemas.previewQuery } }, async (request) => {
@@ -174,8 +182,8 @@ export class SchedulerApi {
       const p = s.preview(/** @type {string} */ (q.cron), q.timezone, q.count ? Number(q.count) : 5);
       return { ...p, next: p.next.map((t) => new Date(t).toISOString()) };
     });
-    api.get('/target-keys', read, async () => ({ items: [...this.config.targetKeys.keys()].sort() }));
-    api.get('/timezones', read, async () => ({ items: Intl.supportedValuesOf('timeZone') }));
+    api.get('/target-keys', read, async () => ({ items: [...this.config.targetKeys.keys()].sort(), nextCursor: null }));
+    api.get('/timezones', read, async () => ({ items: Intl.supportedValuesOf('timeZone'), nextCursor: null }));
 
     api.get('/stats', read, async () => this.#stats());
   }
@@ -183,9 +191,9 @@ export class SchedulerApi {
   /** @param {Record<string, string|undefined>} q */
   #runs(q) {
     const limit = q.limit ? Number(q.limit) : 50;
-    const rows = this.runs.list({ jobName: q.job, status: /** @type {any} */ (q.status) }, { limit: limit + 1, beforeId: q.before ? Number(q.before) : undefined });
+    const rows = this.runs.list({ jobName: q.job, status: /** @type {any} */ (q.status) }, { limit: limit + 1, beforeId: q.cursor ? Number(q.cursor) : undefined });
     const items = rows.slice(0, limit);
-    return { items: items.map(Views.run), nextBefore: rows.length > limit ? String(items[items.length - 1].id) : null };
+    return { items: items.map(Views.run), nextCursor: rows.length > limit ? String(items[items.length - 1].id) : null };
   }
 
   #stats() {

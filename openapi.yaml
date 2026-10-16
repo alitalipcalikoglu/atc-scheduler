@@ -122,6 +122,8 @@ paths:
   /v1/jobs:
     post:
       operationId: atc-scheduler.jobs.create
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKeyHeader'
       summary: Create a job
       tags: [Jobs]
       requestBody:
@@ -281,6 +283,7 @@ paths:
         `retrying` run — only one run may be in flight per job at a time.
       tags: [Jobs]
       parameters:
+        - $ref: '#/components/parameters/IdempotencyKeyHeader'
         - $ref: "#/components/parameters/JobName"
       responses:
         "202":
@@ -402,6 +405,7 @@ paths:
         terminal state (`succeeded`, `failed`, `skipped`, `cancelled`).
       tags: [Runs]
       parameters:
+        - $ref: '#/components/parameters/IdempotencyKeyHeader'
         - $ref: "#/components/parameters/RunId"
       responses:
         "200":
@@ -552,6 +556,12 @@ components:
         Recognized key lacking the required role: `403 FORBIDDEN`.
 
   parameters:
+    IdempotencyKeyHeader:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Optional. Repeats of this POST with the same key (per API key, 24 h) replay the first 2xx answer with `Idempotent-Replayed: true` instead of running again; the same key with another method, path or body is `409 IDEMPOTENCY_MISMATCH`, while the first still runs `409 IDEMPOTENCY_IN_PROGRESS`."
+      schema: { type: string, pattern: '^[A-Za-z0-9._:-]{8,255}$' }
     JobName:
       name: name
       in: path
@@ -564,7 +574,7 @@ components:
       required: true
       schema:
         type: string
-        pattern: "^[1-9][0-9]{0,15}$"
+        pattern: "^run_[0-9a-z]{6,12}[0-9a-f]{16}$"
     JobsQ:
       name: q
       in: query
@@ -618,10 +628,10 @@ components:
       schema:
         $ref: "#/components/schemas/JobNameValue"
     RunsBefore:
-      name: before
+      name: cursor
       in: query
       required: false
-      description: Opaque keyset cursor — the `id` of the last item from the previous page.
+      description: Opaque `nextCursor` from the previous page.
       schema:
         type: string
         pattern: "^[1-9][0-9]{0,15}$"
@@ -1124,7 +1134,9 @@ components:
         - createdAt
       properties:
         id:
-          type: integer
+          type: string
+          pattern: "^run_[0-9a-z]{6,12}[0-9a-f]{16}$"
+          description: The platform's one id format; also sent to the target as `x-scheduler-run`.
         job:
           $ref: "#/components/schemas/JobNameValue"
         trigger:
@@ -1172,15 +1184,15 @@ components:
 
     RunList:
       type: object
-      required: [items, nextBefore]
+      required: [items, nextCursor]
       properties:
         items:
           type: array
           items:
             $ref: "#/components/schemas/Run"
-        nextBefore:
+        nextCursor:
           type: [string, "null"]
-          description: Pass as `before` to fetch the next (older) page; `null` on the last page.
+          description: Pass as `cursor` to fetch the next (older) page; `null` on the last page.
 
     PreviewResponse:
       type: object
@@ -1201,23 +1213,29 @@ components:
 
     TargetKeysResponse:
       type: object
-      required: [items]
+      required: [items, nextCursor]
       properties:
         items:
           type: array
           items:
             type: string
           description: Configured `TARGET_KEYS` names, sorted.
+        nextCursor:
+          type: "null"
+          description: Always null; the list is complete.
 
     TimezonesResponse:
       type: object
-      required: [items]
+      required: [items, nextCursor]
       properties:
         items:
           type: array
           items:
             type: string
           description: IANA timezone names supported by this Node runtime.
+        nextCursor:
+          type: "null"
+          description: Always null; the list is complete.
 
     StatsResponse:
       type: object

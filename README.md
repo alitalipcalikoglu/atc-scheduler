@@ -82,6 +82,12 @@ curl -s -X POST http://localhost:3008/v1/jobs \
         "target": { "url": "https://api.example/reports/daily", "body": { "full": true } }, "targetKey": "reports" }'
 ```
 
+## Conventions
+
+- Runs have ids in the platform's one format, `run_<time><random>` (also sent to targets as `x-scheduler-run` and in `ops.scheduler.job_failed`); jobs are named.
+- Lists answer `{ items, nextCursor }`; pass `nextCursor` back as `cursor`.
+- `POST /v1/jobs`, `POST /v1/jobs/{name}/run` and `POST /v1/runs/{id}/cancel` honour `Idempotency-Key`: a repeat with the same key (per API key and caller, 24 h) replays the first 2xx answer with `Idempotent-Replayed: true`, so a retried manual run never fires twice.
+
 ## Examples
 
 Scenario walkthroughs for every feature live in [examples/](examples/README.md), including [scheduling a feature-flag change](examples/flags-scheduled-change.md) through the flags service.

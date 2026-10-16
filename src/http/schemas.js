@@ -1,3 +1,4 @@
+import { Ids } from '@atc-web/atc-service-core/ids';
 /** JSON Schemas for the HTTP surface. Semantic checks (cron, URL, headers) happen in the domain layer. */
 export class Schemas {
   static name = { type: 'string', pattern: '^[a-z0-9]+([.\\-_][a-z0-9]+)*$', maxLength: 80 };
@@ -38,7 +39,7 @@ export class Schemas {
   };
 
   static nameParams = { type: 'object', properties: { name: Schemas.name }, required: ['name'] };
-  static idParams = { type: 'object', properties: { id: { type: 'string', pattern: '^[1-9][0-9]{0,15}$' } }, required: ['id'] };
+  static idParams = { type: 'object', properties: { id: { type: 'string', pattern: Ids.pattern('run') } }, required: ['id'] };
 
   static limit = { type: 'string', pattern: '^([1-9]|[1-9][0-9]|1[0-9][0-9]|200)$' };
   static listQuery = {
@@ -47,7 +48,7 @@ export class Schemas {
   };
   static runsQuery = {
     type: 'object', additionalProperties: false,
-    properties: { status: { type: 'string', enum: ['pending', 'running', 'retrying', 'succeeded', 'failed', 'skipped', 'cancelled'] }, job: Schemas.name, limit: Schemas.limit, before: { type: 'string', pattern: '^[1-9][0-9]{0,15}$' } },
+    properties: { status: { type: 'string', enum: ['pending', 'running', 'retrying', 'succeeded', 'failed', 'skipped', 'cancelled'] }, job: Schemas.name, limit: Schemas.limit, cursor: { type: 'string', pattern: '^[1-9][0-9]{0,15}$' } },
   };
   static previewQuery = {
     type: 'object', additionalProperties: false, required: ['cron'],

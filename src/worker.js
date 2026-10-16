@@ -179,7 +179,7 @@ export class Worker {
       } else {
         try {
           const target = JSON.parse(job.target);
-          const result = await this.caller.call({ job: job.name, run: run.id, attempt: run.attempt, target, targetKey: job.target_key, timeoutMs: job.timeout_ms });
+          const result = await this.caller.call({ job: job.name, run: run.public_id, attempt: run.attempt, target, targetKey: job.target_key, timeoutMs: job.timeout_ms });
           outcome = { startedAt, error: null, httpStatus: result.httpStatus, response: result.response, retryable: false };
         } catch (err) {
           const e = /** @type {{ message: string, httpStatus?: number|null, response?: string, retryable?: boolean }} */ (err);
@@ -227,8 +227,8 @@ export class Worker {
   #applyOutcome(run, status, now) {
     if (status !== 'retrying') this.jobs.recordOutcome(run.job_name, now, status);
     this.counters[status === 'retrying' ? 'retried' : status]++;
-    const meta = { job: run.job_name, run: run.id, attempt: run.attempt, status, httpStatus: run.http_status, durationMs: run.duration_ms, nextAttemptAt: run.next_attempt_at };
-    if (status === 'failed') this.publisher.publish('ops.scheduler.job_failed', { job: run.job_name, run: run.id, attempts: run.attempt, httpStatus: run.http_status, error: run.error });
+    const meta = { job: run.job_name, run: run.public_id, attempt: run.attempt, status, httpStatus: run.http_status, durationMs: run.duration_ms, nextAttemptAt: run.next_attempt_at };
+    if (status === 'failed') this.publisher.publish('ops.scheduler.job_failed', { job: run.job_name, run: run.public_id, attempts: run.attempt, httpStatus: run.http_status, error: run.error });
     if (status === 'succeeded') this.log.info(meta, 'run succeeded');
     else this.log[status === 'failed' ? 'error' : 'warn']({ ...meta, error: run.error }, status === 'failed' ? 'run failed' : 'attempt failed, retry scheduled');
   }

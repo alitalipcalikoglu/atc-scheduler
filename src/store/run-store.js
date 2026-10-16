@@ -1,3 +1,4 @@
+import { Ids } from '@atc-web/atc-service-core/ids';
 import { randomUUID } from 'node:crypto';
 
 /** @typedef {import('../db.js').Database} Database */
@@ -20,7 +21,7 @@ import { randomUUID } from 'node:crypto';
  * with a previous one.
  */
 export class RunStore {
-  static COLUMNS = 'id, job_name, trigger, status, scheduled_for, attempt, max_attempts, next_attempt_at, started_at, finished_at, duration_ms, http_status, response, error, attempts, created_at, owner_token, lease_until';
+  static COLUMNS = 'id, job_name, trigger, status, scheduled_for, attempt, max_attempts, next_attempt_at, started_at, finished_at, duration_ms, http_status, response, error, attempts, created_at, owner_token, lease_until, public_id';
   static ACTIVE = /** @type {const} */ (['pending', 'running', 'retrying']);
   static STATUSES = /** @type {const} */ (['pending', 'running', 'retrying', 'succeeded', 'failed', 'skipped', 'cancelled']);
 
@@ -29,7 +30,8 @@ export class RunStore {
     this.db = db;
     const C = RunStore.COLUMNS;
     this.stmt = {
-      insert: db.prepare(`INSERT INTO runs (job_name, trigger, status, scheduled_for, attempt, max_attempts, next_attempt_at, error, created_at) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?)`),
+      insert: db.prepare(`INSERT INTO runs (job_name, trigger, status, scheduled_for, attempt, max_attempts, next_attempt_at, error, created_at, public_id) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`),
+      idOf: db.prepare('SELECT id FROM runs WHERE public_id = ?'),
       get: db.prepare(`SELECT ${C} FROM runs WHERE id = ?`),
       active: db.prepare(`SELECT id FROM runs WHERE job_name = ? AND status IN ('pending', 'running', 'retrying') LIMIT 1`),
       due: db.prepare(`SELECT ${C} FROM runs WHERE status IN ('pending', 'retrying') AND next_attempt_at <= ? ORDER BY next_attempt_at, id LIMIT ?`),
@@ -55,8 +57,14 @@ export class RunStore {
    * @param {number} [now]
    */
   insert({ jobName, trigger, status, scheduledFor, maxAttempts, nextAttemptAt = null, error = null }, now = Date.now()) {
-    const id = Number(this.stmt.insert.run(jobName, trigger, status, scheduledFor, maxAttempts, nextAttemptAt, error, now).lastInsertRowid);
+    const id = Number(this.stmt.insert.run(jobName, trigger, status, scheduledFor, maxAttempts, nextAttemptAt, error, now, Ids.create('run', now)).lastInsertRowid);
     return /** @type {RunRow} */ (this.get(id));
+  }
+
+  /** Internal id of a public run id, or undefined. @param {string} publicId @returns {number|undefined} */
+  idOf(publicId) {
+    const r = /** @type {{ id: number }|undefined} */ (this.stmt.idOf.get(publicId));
+    return r ? Number(r.id) : undefined;
   }
 
   /** @param {number} id */

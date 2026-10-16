@@ -28,7 +28,7 @@ test('Worker: successful call carries signature, run headers, bearer token and b
   assert.equal(req.headers.authorization, `Bearer ${FLAGS_TOKEN}`);
   assert.equal(req.headers['x-tenant'], 'a');
   assert.equal(req.headers['x-scheduler-job'], 'sync');
-  assert.equal(req.headers['x-scheduler-run'], String(run.id));
+  assert.equal(req.headers['x-scheduler-run'], run.public_id);
   assert.equal(req.headers['x-scheduler-attempt'], '1');
   // Post-production Phase 5 security regression: a job target is operator-configured external —
   // never receives platform trace/request-id headers.

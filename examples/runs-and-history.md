@@ -15,10 +15,10 @@ scurl "$SCHED/v1/runs?status=failed&limit=50"
 scurl "$SCHED/v1/runs?job=nightly.report&status=skipped"
 ```
 
-Filters: `status`, `job`. Newest first. Pagination is keyset: the response carries `nextBefore` (a run id) while more rows exist; pass it as `before`:
+Filters: `status`, `job`. Newest first. Pagination is keyset: the response carries `nextCursor` (opaque) while more rows exist; pass it as `cursor`:
 
 ```bash
-scurl "$SCHED/v1/runs?limit=50&before=8360"
+scurl "$SCHED/v1/runs?limit=50&cursor=8360"
 ```
 
 `limit` ≤ 200.

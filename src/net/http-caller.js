@@ -32,7 +32,7 @@ export class HttpCaller {
   }
 
   /**
-   * @param {{ job: string, run: number, attempt: number, target: Target, targetKey: string|null, timeoutMs: number }} call
+   * @param {{ job: string, run: string, attempt: number, target: Target, targetKey: string|null, timeoutMs: number }} call
    * @returns {Promise<CallResult>} 2xx outcome; rejects with {@link CallError} otherwise.
    */
   async call({ job, run, attempt, target, targetKey, timeoutMs }) {

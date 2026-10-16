@@ -9,7 +9,7 @@ scurl -X POST $SCHED/v1/jobs/nightly.report/run
 `202`:
 
 ```json
-{ "run": { "id": 8413, "job": "nightly.report", "trigger": "manual", "status": "pending", "scheduledFor": "2026-09-18T09:12:44.000Z", "attempt": 0, "maxAttempts": 4, "nextAttemptAt": "2026-09-18T09:12:44.000Z", … } }
+{ "run": { "id": "run_mgx1k2ab0123456789abcd13", "job": "nightly.report", "trigger": "manual", "status": "pending", "scheduledFor": "2026-09-18T09:12:44.000Z", "attempt": 0, "maxAttempts": 4, "nextAttemptAt": "2026-09-18T09:12:44.000Z", … } }
 ```
 
 The run is queued and picked up within `POLL_MS`. It uses the job's target, timeout and retry policy exactly like a scheduled firing; only `trigger` differs. The schedule is untouched: the next regular firing still happens.
@@ -27,13 +27,13 @@ While a job has a `pending`, `running` or `retrying` run, another trigger is ref
 `409`. Wait for it, or cancel it if it is still queued or retrying:
 
 ```bash
-scurl -X POST $SCHED/v1/runs/8413/cancel
+scurl -X POST $SCHED/v1/runs/run_mgx1k2ab0123456789abcd13/cancel
 ```
 
 ## Watching it finish
 
 ```bash
-scurl $SCHED/v1/runs/8413
+scurl $SCHED/v1/runs/run_mgx1k2ab0123456789abcd13
 ```
 
 Poll until `status` is `succeeded` or `failed`; `finishedAt`, `durationMs`, `httpStatus` and `response` are then filled. A console can show the run page and refresh it on demand; there is no push channel.
