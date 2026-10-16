@@ -20,6 +20,10 @@ in 20 minutes" does not need to build its own timer, retry logic or SSRF guard.
   `TARGET_KEYS` (bearer tokens a job can reference by name) is optional and defaults to empty; a
   job referencing an unconfigured key is rejected at creation time (`UNKNOWN_TARGET_KEY`), not at
   call time.
+- `atc-webhook-out` (`WEBHOOK_OUT_URL` + `WEBHOOK_OUT_API_KEY`, a publish-role key): optional,
+  both-or-neither. `ops.scheduler.job_failed` events are published best effort from a bounded in-memory queue (500
+  events, three retries, an idempotency key each) in the background; the request path never waits
+  on it, and events still queued at a restart are lost (atc-stack `docs/EVENTS.md`).
 - No other outbound service dependency. `atc-scheduler` does not call `atc-auth`, `atc-gateway`, or any other
   platform service to do its own work.
 
@@ -200,6 +204,11 @@ timeout (one run's ceiling); `HEARTBEAT_MS` is how often an in-flight run renews
 - `POST /v1/jobs` (create): not idempotent by design — a repeat with the same `name` gets
   `409 JOB_EXISTS` rather than silently succeeding again, so retries are conflict-safe (no
   duplicate job) but not literally idempotent.
+- `POST /v1/jobs`, `POST /v1/jobs/:name/run` and `POST /v1/runs/:id/cancel` accept an optional
+  `Idempotency-Key` header (`@atc-web/atc-service-core/idempotency`, v1.30): a repeat with the
+  same key, caller and body replays the stored 2xx answer with `Idempotent-Replayed: true`. With
+  the header, the manual-trigger retry caveat below disappears: the repeat replays the first `202`
+  and queues no second run.
 - `PATCH /v1/jobs/:name`: safe to retry for most fields. One caveat: sending the same `schedule`
   value twice is not fully idempotent — any presence of `patch.schedule` recomputes `next_run_at`
   from the request's own `now` (`JobService#update`), so two identical schedule patches minutes
